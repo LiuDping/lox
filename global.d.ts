@@ -1,0 +1,1 @@
+declare type vObject = string | number | boolean | null;

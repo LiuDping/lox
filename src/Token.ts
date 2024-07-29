@@ -3,10 +3,10 @@ import TokenType from "./TokenType";
 class Token {
     type: TokenType;
     lexeme: string;
-    literal: string | number | null;
+    literal: vObject;
     line: number;
 
-    constructor(type: TokenType, lexeme: string, literal: string | number | null, line: number) {
+    constructor(type: TokenType, lexeme: string, literal: vObject, line: number) {
         this.type = type;
         this.lexeme = lexeme;
         this.literal = literal;
@@ -14,7 +14,7 @@ class Token {
     }
 
     public toString(): string {
-        return this.type + " " + this.lexeme + " " + this.literal;
+        return TokenType[this.type] + " " + this.lexeme + " " + this.literal;
     }
 }
 

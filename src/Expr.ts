@@ -42,9 +42,9 @@ export class Grouping extends Expr {
 }
 
 export class Literal extends Expr {
-    readonly value: string | boolean | number | null;
+    readonly value: vObject;
 
-    constructor(value: string | boolean | number | null) {
+    constructor(value: vObject) {
         super();
         this.value = value;
     }

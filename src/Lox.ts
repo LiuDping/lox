@@ -5,9 +5,14 @@ import Scanner from './Scanner'
 import Parser from './Parser';
 import type { Expr } from './Expr';
 import AstPrinter from './AstPrinter';
+import type RuntimeError from './RuntimeError';
+import Interpreter from './Interpreter';
 
 class Lox {
     static hadError: boolean = false;
+    static hadRuntimeError: boolean = false;
+
+    static readonly interpreter: Interpreter = new Interpreter()
 
     static async runFile(path: string): Promise<void> {
         const source: string = await Bun.file(path).text()
@@ -15,6 +20,8 @@ class Lox {
 
         // TODO: 理解含义
         if (Lox.hadError) exit(65)
+
+        if (Lox.hadRuntimeError) exit(70);
     }
 
     static async runPrompt(): Promise<void> {
@@ -43,7 +50,8 @@ class Lox {
 
         if (this.hadError) return;
 
-        console.log(new AstPrinter().print(expression))
+        // console.log(new AstPrinter().print(expression))
+        this.interpreter.interpret(expression);
     }
 
     static error(line: number, message: string): void;
@@ -65,6 +73,11 @@ class Lox {
     static report(line: number, where: string, message: string) {
         console.error(`[line ${line}] Error${where}: ${message}`);
         Lox.hadError = true;
+    }
+
+    static runtimeError(error: RuntimeError): void {
+        console.error(error.message + '\n[line ' + error.token.line + ']');
+        this.hadRuntimeError = true;
     }
 }
 
