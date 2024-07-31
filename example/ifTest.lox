@@ -1,0 +1,16 @@
+var first = true;
+var second = true;
+
+if (first)
+    if (second)
+        print "1";
+    else
+        print "2";
+
+second = false;
+
+if (first)
+    if (second)
+        print "1";
+    else
+        print "2";

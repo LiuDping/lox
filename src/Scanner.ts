@@ -155,7 +155,7 @@ class Scanner {
 
         // 如果是匹配成功，则需吃进一个字母
         this.current++;
-        return false
+        return true
     }
 
     private peek(): string {
@@ -194,7 +194,7 @@ class Scanner {
     private addToken(type: TokenType, literal: vObject): void;
     private addToken(type: TokenType, literal?: vObject): void {
         const text: string = this.source.substring(this.start, this.current);
-        this.tokens.push(new Token(type, text, literal ? literal : null, this.line));
+        this.tokens.push(new Token(type, text, literal === undefined || literal === null ? null : literal, this.line));
     }
 }
 

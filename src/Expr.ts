@@ -1,4 +1,4 @@
-import type Token from "./Token";
+import Token from "./Token";
 
 abstract class Expr {
     abstract accept<R>(visitor: Visitor<R>): R;
@@ -9,6 +9,9 @@ interface Visitor<R> {
     visitGroupingExpr(expr: Grouping): R;
     visitLiteralExpr(expr: Literal): R;
     visitUnaryExpr(expr: Unary): R;
+    visitVariableExpr(expr: Variable): R;
+    visitAssignExpr(expr: Assign): R
+    visitLogicalExpr(expr: Logical): R;
 }
 
 export class Binary extends Expr {
@@ -66,6 +69,51 @@ export class Unary extends Expr {
 
     accept<R>(visitor: Visitor<R>): R {
         return visitor.visitUnaryExpr(this);
+    }
+}
+
+export class Variable extends Expr {
+    readonly name: Token;
+
+    constructor(name: Token) {
+        super();
+        this.name = name;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitVariableExpr(this);
+    }
+}
+
+export class Assign extends Expr {
+    readonly name: Token;
+    readonly value: Expr;
+
+    constructor(name: Token, value: Expr) {
+        super();
+        this.name = name;
+        this.value = value;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitAssignExpr(this);
+    }
+}
+
+export class Logical extends Expr {
+    readonly left: Expr;
+    readonly operator: Token;
+    readonly right: Expr;
+
+    constructor(left: Expr, operator: Token, right: Expr) {
+        super();
+        this.left = left;
+        this.operator = operator;
+        this.right = right;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitLogicalExpr(this);
     }
 }
 

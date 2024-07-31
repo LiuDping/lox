@@ -1,17 +1,70 @@
 import TokenType from "./TokenType";
 import type Token from "./Token";
-import type { Binary, Expr, Grouping, Literal, Unary, Visitor } from "./Expr";
-import Lox from "./Lox";
+import type { Binary, Expr, Grouping, Literal, Unary, Visitor as ExprVisitor, Variable, Assign, Logical } from "./Expr";
+import type { Block, Expression, If, Print, Stmt, Visitor as StmtVisitor, Var, While } from "./Stmt";
 import RuntimeError from "./RuntimeError";
+import Environment from "./Environment";
+import Lox from "./Lox";
 
-class Interpreter implements Visitor<vObject> {
-    interpret(expression: Expr) {
+class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
+    private environment: Environment = new Environment();
+
+    interpret(statements: Stmt[]) {
         try {
-            const value: vObject = this.evaluate(expression);
-            console.log(this.stringify(value));
+            for (let statement of statements) {
+                this.execute(statement);
+            }
         } catch (error: any) {
             Lox.runtimeError(error);
         }
+    }
+
+    visitBlockStmt(stmt: Block): void {
+        this.executeBlock(stmt.statements, new Environment(this.environment));
+    }
+
+    visitIfStmt(stmt: If): void {
+        if (this.isTruthy(this.evaluate(stmt.condition))) {
+            this.execute(stmt.thenBranch);
+        } else if (stmt.elseBranch != null) {
+            this.execute(stmt.elseBranch)
+        }
+    }
+
+    visitLogicalExpr(expr: Logical): vObject {
+        const left = this.evaluate(expr.left);
+
+        if (expr.operator.type == TokenType.OR) {
+            if (this.isTruthy(left)) return left;
+        } else {
+            if (!this.isTruthy(left)) return left;
+        }
+
+        return this.evaluate(expr.right);
+    }
+
+    visitWhileStmt(stmt: While): void {
+        while (this.isTruthy(this.evaluate(stmt.condition))) {
+            this.execute(stmt.body);
+        }
+    }
+
+    visitExpressionStmt(stmt: Expression): void {
+        this.evaluate(stmt.expression);
+    }
+
+    visitPrintStmt(stmt: Print): void {
+        const value: vObject = this.evaluate(stmt.expression);
+        console.log(this.stringify(value));
+    }
+
+    visitVarStmt(stmt: Var): void {
+        let value: vObject = null;
+        if (stmt.initializer !== null) {
+            value = this.evaluate(stmt.initializer)
+        }
+
+        this.environment.define(stmt.name.lexeme, value);
     }
 
     visitBinaryExpr(expr: Binary): vObject {
@@ -77,6 +130,33 @@ class Interpreter implements Visitor<vObject> {
         }
 
         return null;
+    }
+
+    visitVariableExpr(expr: Variable): vObject {
+        return this.environment.get(expr.name);
+    }
+
+    visitAssignExpr(expr: Assign): vObject {
+        const value: vObject = this.evaluate(expr.value);
+        this.environment.assign(expr.name, value);
+        return value;
+    }
+
+    private execute(stmt: Stmt): void {
+        stmt.accept(this);
+    }
+
+    private executeBlock(statements: Stmt[], environment: Environment): void {
+        const previous: Environment = this.environment;
+        try {
+            this.environment = environment;
+
+            for (let statement of statements) {
+                this.execute(statement);
+            }
+        } finally {
+            this.environment = previous;
+        }
     }
 
     private evaluate(expr: Expr): vObject {

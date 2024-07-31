@@ -4,7 +4,7 @@ import Token from './Token'
 import Scanner from './Scanner'
 import Parser from './Parser';
 import type { Expr } from './Expr';
-import AstPrinter from './AstPrinter';
+import type { Stmt } from './Stmt';
 import type RuntimeError from './RuntimeError';
 import Interpreter from './Interpreter';
 
@@ -46,12 +46,12 @@ class Lox {
         // }
 
         const parser = new Parser(tokens);
-        const expression: Expr = parser.parse()!;
+        const statements: Stmt[] = parser.parse()!;
 
         if (this.hadError) return;
 
         // console.log(new AstPrinter().print(expression))
-        this.interpreter.interpret(expression);
+        this.interpreter.interpret(statements);
     }
 
     static error(line: number, message: string): void;

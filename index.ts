@@ -2,18 +2,16 @@ import { parseArgs } from "node:util";
 import Lox from './src/Lox'
 
 function main() {
-    const { values } = parseArgs({
+    const { positionals } = parseArgs({
         args: Bun.argv,
-        options: {
-            lox: {
-                type: 'string',
-            },
-        },
+        options: {},
         strict: true,
         allowPositionals: true,
     });
-    if (values.lox) {
-        Lox.runFile(values.lox);
+    if (positionals.length > 2) {
+        for (let file of positionals.slice(2)) {
+            Lox.runFile(file)
+        }
     } else {
         Lox.runPrompt();
     }
