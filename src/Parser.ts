@@ -1,8 +1,8 @@
 import TokenType from "./TokenType";
 import Token from "./Token";
 import Lox from "./Lox";
-import { type Expr, Assign, Binary, Grouping, Literal, Logical, Unary, Variable } from "./Expr";
-import { type Stmt, Print, Expression, Var, Block, If, While } from "./Stmt";
+import { type Expr, Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable } from "./Expr";
+import { type Stmt, Print, Expression, Var, Block, If, While, Func, Return } from "./Stmt";
 
 class ParserError extends Error { }
 
@@ -42,6 +42,7 @@ class Parser {
 
     private declaration(): Stmt | null {
         try {
+            if (this.match(TokenType.FUN)) return this.func('function');
             if (this.match(TokenType.VAR)) return this.varDeclaration();
 
             return this.statement();
@@ -65,6 +66,7 @@ class Parser {
 
     private statement(): Stmt {
         if (this.match(TokenType.PRINT)) return this.printStatement();
+        if (this.match(TokenType.RETURN)) return this.returnStatement();
         if (this.match(TokenType.LEFT_BRACE)) return new Block(this.block());
         if (this.match(TokenType.IF)) return this.ifStatement();
         if (this.match(TokenType.WHILE)) return this.whileStatement();
@@ -143,10 +145,39 @@ class Parser {
         return new Print(value);
     }
 
+    private returnStatement(): Stmt {
+        const keyword: Token = this.previous();
+        let value: Expr | null = null;
+        if (!this.check(TokenType.SEMICOLON)) {
+            value = this.expression();
+        }
+        this.consume(TokenType.SEMICOLON, "Expect ';' after return value.");
+        return new Return(keyword, value);
+    }
+
     private expressionStatement(): Stmt {
         const expr: Expr = this.expression()
         this.consume(TokenType.SEMICOLON, "Expect ';' after expression.");
         return new Expression(expr);
+    }
+
+    private func(kind: string): Func {
+        const name: Token = this.consume(TokenType.IDENTIFIER, "Expect " + kind + " name.");
+        this.consume(TokenType.LEFT_PAREN, "Expect '(' after " + kind + " name.");
+        const parameters: Token[] = [];
+        if (!this.check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (parameters.length >= 255) {
+                    this.error(this.peek(), "Can't have more than 255 parameters.");
+                }
+
+                parameters.push(this.consume(TokenType.IDENTIFIER, "Expect parameter name."));
+            } while (this.match(TokenType.COMMA))
+        }
+        this.consume(TokenType.RIGHT_PAREN, "Expect ')' after parameters.");
+        this.consume(TokenType.LEFT_BRACE, "Expect '{' before " + kind + " body.");
+        const body: Stmt[] = this.block();
+        return new Func(name, parameters, body);
     }
 
 
@@ -249,8 +280,22 @@ class Parser {
             const right: Expr = this.unary();
             return new Unary(operator, right);
         } else {
-            return this.primary();
+            return this.call();
         }
+    }
+
+    private call(): Expr {
+        let expr: Expr = this.primary();
+
+        while (true) {
+            if (this.match(TokenType.LEFT_PAREN)) {
+                expr = this.finishCall(expr);
+            } else {
+                break;
+            }
+        }
+
+        return expr;
     }
 
     private primary(): Expr {
@@ -275,6 +320,22 @@ class Parser {
         throw this.error(this.peek(), "Expect expression.");
     }
 
+    private finishCall(callee: Expr): Expr {
+        const args: Expr[] = [];
+        if (!this.check(TokenType.RIGHT_PAREN)) {
+            do {
+                if (args.length >= 255) {
+                    this.error(this.peek(), "Can't have more than 255 arguments.");
+                }
+                args.push(this.expression());
+            } while (this.match(TokenType.COMMA))
+        }
+
+
+        const paren: Token = this.consume(TokenType.RIGHT_PAREN, "Expect ')' after arguments.");
+
+        return new Call(callee, paren, args);
+    }
 
     private match(...types: TokenType[]) {
         for (let type of types) {

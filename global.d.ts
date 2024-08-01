@@ -1,1 +1,1 @@
-declare type vObject = string | number | boolean | null;
+declare type vObject = Object | null;

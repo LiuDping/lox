@@ -6,6 +6,7 @@ abstract class Expr {
 
 interface Visitor<R> {
     visitBinaryExpr(expr: Binary): R;
+    visitCallExpr(expr: Call): R;
     visitGroupingExpr(expr: Grouping): R;
     visitLiteralExpr(expr: Literal): R;
     visitUnaryExpr(expr: Unary): R;
@@ -28,6 +29,23 @@ export class Binary extends Expr {
 
     accept<R>(visitor: Visitor<R>): R {
         return visitor.visitBinaryExpr(this);
+    }
+}
+
+export class Call extends Expr {
+    readonly callee: Expr;
+    readonly paren: Token;
+    readonly args: Expr[];
+
+    constructor(callee: Expr, paren: Token, args: Expr[]) {
+        super();
+        this.callee = callee;
+        this.paren = paren;
+        this.args = args;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitCallExpr(this);
     }
 }
 

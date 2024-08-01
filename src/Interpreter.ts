@@ -1,15 +1,33 @@
 import TokenType from "./TokenType";
 import type Token from "./Token";
-import type { Binary, Expr, Grouping, Literal, Unary, Visitor as ExprVisitor, Variable, Assign, Logical } from "./Expr";
-import type { Block, Expression, If, Print, Stmt, Visitor as StmtVisitor, Var, While } from "./Stmt";
+import type { Binary, Expr, Grouping, Literal, Unary, Visitor as ExprVisitor, Variable, Assign, Logical, Call } from "./Expr";
+import type { Block, Expression, Func, If, Print, Return, Stmt, Visitor as StmtVisitor, Var, While } from "./Stmt";
+import { LoxFunction, LoxCallable } from "./LoxCallable";
 import RuntimeError from "./RuntimeError";
 import Environment from "./Environment";
 import Lox from "./Lox";
 
 class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
-    private environment: Environment = new Environment();
+    readonly _lox_return_: vObject[] = [];
+    readonly globals: Environment = new Environment();
+    private environment: Environment = this.globals;
 
     interpret(statements: Stmt[]) {
+        this.globals.define('clock', new (class extends LoxCallable {
+            constructor() {
+                super();
+            }
+            arity(): number {
+                return 0;
+            }
+            call(interpreter: Interpreter, args: vObject[]): vObject {
+                return new Date().valueOf() / 1000.0
+            }
+            toString(): string {
+                return '<native fn>';
+            }
+        })());
+
         try {
             for (let statement of statements) {
                 this.execute(statement);
@@ -53,9 +71,22 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         this.evaluate(stmt.expression);
     }
 
+    visitFuncStmt(stmt: Func): void {
+        const func: LoxFunction = new LoxFunction(stmt, this.environment);
+        this.environment.define(stmt.name.lexeme, func);
+    }
+
     visitPrintStmt(stmt: Print): void {
         const value: vObject = this.evaluate(stmt.expression);
         console.log(this.stringify(value));
+    }
+
+    visitReturnStmt(stmt: Return): void {
+        let value: vObject = null;
+        if (stmt.value != null) value = this.evaluate(stmt.value);
+
+        this._lox_return_.push(value);
+        throw new Error('_lox_return_');
     }
 
     visitVarStmt(stmt: Var): void {
@@ -110,6 +141,29 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         return null;
     }
 
+    visitCallExpr(expr: Call): vObject {
+        const callee: vObject = this.evaluate(expr.callee);
+        const args: vObject[] = [];
+
+        for (let arg of expr.args) {
+            args.push(this.evaluate(arg));
+        }
+
+        if (!(callee instanceof LoxCallable)) {
+            throw new RuntimeError(expr.paren, "Can only call functions and classes.");
+        }
+
+        const func: LoxCallable = callee as unknown as LoxCallable;
+
+        if (args.length != func.arity()) {
+            throw new RuntimeError(expr.paren, "Expected " +
+                func.arity() + " arguments but got " +
+                args.length + ".");
+        }
+
+        return func.call(this, args);
+    }
+
     visitGroupingExpr(expr: Grouping): vObject {
         return this.evaluate(expr.expression);
     }
@@ -146,7 +200,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         stmt.accept(this);
     }
 
-    private executeBlock(statements: Stmt[], environment: Environment): void {
+    executeBlock(statements: Stmt[], environment: Environment): void {
         const previous: Environment = this.environment;
         try {
             this.environment = environment;
