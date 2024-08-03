@@ -19,6 +19,19 @@ class Environment {
         this.values[name] = value;
     }
 
+    ancestor(distance: number): Environment {
+        let environment: Environment = this;
+        for (let i = 0; i < distance; i++) {
+            environment = environment.enclosing!;
+        }
+
+        return environment!;
+    }
+
+    getAt(distance: number, name: string): vObject {
+        return this.ancestor(distance).values[name];
+    }
+
     get(name: Token): vObject {
         if (Object.hasOwn(this.values, name.lexeme)) {
             return this.values[name.lexeme];
@@ -27,6 +40,10 @@ class Environment {
         if (this.enclosing != null) return this.enclosing.get(name);
 
         throw new RuntimeError(name, "Undefined variable '" + name.lexeme + "'.")
+    }
+
+    assignAt(distance: number, name: Token, value: vObject): void {
+        this.ancestor(distance).values[name.lexeme] = value;
     }
 
     assign(name: Token, value: vObject): void {

@@ -3,9 +3,9 @@ import TokenType from './TokenType';
 import Token from './Token'
 import Scanner from './Scanner'
 import Parser from './Parser';
-import type { Expr } from './Expr';
 import type { Stmt } from './Stmt';
 import type RuntimeError from './RuntimeError';
+import Resolver from './Resolver';
 import Interpreter from './Interpreter';
 
 class Lox {
@@ -47,6 +47,11 @@ class Lox {
 
         const parser = new Parser(tokens);
         const statements: Stmt[] = parser.parse()!;
+
+        if (this.hadError) return;
+
+        const resolver: Resolver = new Resolver(this.interpreter);
+        resolver.resolve(statements);
 
         if (this.hadError) return;
 

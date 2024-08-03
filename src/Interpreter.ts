@@ -11,6 +11,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
     readonly _lox_return_: vObject[] = [];
     readonly globals: Environment = new Environment();
     private environment: Environment = this.globals;
+    private readonly locals: Map<Expr, number> = new Map();
 
     interpret(statements: Stmt[]) {
         this.globals.define('clock', new (class extends LoxCallable {
@@ -187,17 +188,39 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
     }
 
     visitVariableExpr(expr: Variable): vObject {
-        return this.environment.get(expr.name);
+        // return this.environment.get(expr.name);
+        return this.lookUpVariable(expr.name, expr);
+    }
+
+    private lookUpVariable(name: Token, expr: Expr): vObject {
+        const distance: number | undefined = this.locals.get(expr);
+        if (typeof distance == 'number') {
+            return this.environment.getAt(distance, name.lexeme);
+        } else {
+            return this.globals.get(name);
+        }
     }
 
     visitAssignExpr(expr: Assign): vObject {
         const value: vObject = this.evaluate(expr.value);
-        this.environment.assign(expr.name, value);
+        // this.environment.assign(expr.name, value);
+
+        const distance: number | undefined = this.locals.get(expr);
+        if(typeof distance == 'number') {
+            this.environment.assignAt(distance, expr.name, value);
+        } else {
+            this.globals.assign(expr.name, value);
+        }
+
         return value;
     }
 
     private execute(stmt: Stmt): void {
         stmt.accept(this);
+    }
+
+    resolve(expr: Expr, depth: number): void {
+        this.locals.set(expr, depth);
     }
 
     executeBlock(statements: Stmt[], environment: Environment): void {
