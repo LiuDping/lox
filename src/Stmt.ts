@@ -1,4 +1,4 @@
-import type { Expr } from "./Expr";
+import type { Expr, Variable } from "./Expr";
 import type Token from "./Token";
 
 abstract class Stmt {
@@ -7,6 +7,7 @@ abstract class Stmt {
 
 interface Visitor<R> {
     visitBlockStmt(stmt: Block): R;
+    visitClassStmt(stmt: Class): R;
     visitIfStmt(stmt: If): R;
     visitWhileStmt(stmt: While): R;
     visitExpressionStmt(stmt: Expression): R;
@@ -26,6 +27,23 @@ export class Block extends Stmt {
 
     accept<R>(visitor: Visitor<R>): R {
         return visitor.visitBlockStmt(this);
+    }
+}
+
+export class Class extends Stmt {
+    readonly name: Token;
+    readonly superclass: Variable | null;
+    readonly methods: Func[];
+
+    constructor(name: Token, superclass: Variable | null,methods: Func[]) {
+        super();
+        this.name = name;
+        this.superclass = superclass;
+        this.methods = methods;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitClassStmt(this);
     }
 }
 

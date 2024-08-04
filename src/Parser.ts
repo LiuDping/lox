@@ -1,8 +1,8 @@
 import TokenType from "./TokenType";
 import Token from "./Token";
 import Lox from "./Lox";
-import { type Expr, Assign, Binary, Call, Grouping, Literal, Logical, Unary, Variable } from "./Expr";
-import { type Stmt, Print, Expression, Var, Block, If, While, Func, Return } from "./Stmt";
+import { type Expr, Assign, Binary, Call, LGet, Grouping, Literal, Logical, Unary, Variable, LSet, This, Super } from "./Expr";
+import { type Stmt, Print, Expression, Var, Block, If, While, Func, Return, Class } from "./Stmt";
 
 class ParserError extends Error { }
 
@@ -42,6 +42,7 @@ class Parser {
 
     private declaration(): Stmt | null {
         try {
+            if (this.match(TokenType.CLASS)) return this.classDeclaration();
             if (this.match(TokenType.FUN)) return this.func('function');
             if (this.match(TokenType.VAR)) return this.varDeclaration();
 
@@ -50,6 +51,26 @@ class Parser {
             this.synchronize();
             return null;
         }
+    }
+
+    private classDeclaration(): Stmt {
+        const name: Token = this.consume(TokenType.IDENTIFIER, "Expect class name.");
+        let superclass: Variable | null = null;
+        if (this.match(TokenType.LESS)) {
+            this.consume(TokenType.IDENTIFIER, "Expect superclass name.");
+            superclass = new Variable(this.previous());
+        }
+
+        this.consume(TokenType.LEFT_BRACE, "Expect '{' before class body.");
+
+        const methods: Func[] = [];
+        while (!this.check(TokenType.RIGHT_BRACE) && !this.isAtEnd()) {
+            methods.push(this.func("method"));
+        }
+
+        this.consume(TokenType.RIGHT_BRACE, "Expect '}' after class body.");
+
+        return new Class(name, superclass, methods);
     }
 
     private varDeclaration(): Stmt {
@@ -194,6 +215,9 @@ class Parser {
             if (expr instanceof Variable) {
                 const name: Token = expr.name;
                 return new Assign(name, value);
+            } else if (expr instanceof LGet) {
+                const get: LGet = expr as LGet;
+                return new LSet(get.obj, get.name, value);
             }
 
             this.error(equals, "Invalid assignment target.");
@@ -290,6 +314,9 @@ class Parser {
         while (true) {
             if (this.match(TokenType.LEFT_PAREN)) {
                 expr = this.finishCall(expr);
+            } else if (this.match(TokenType.DOT)) {
+                const name = this.consume(TokenType.IDENTIFIER, "Expect property name after '.'.");
+                expr = new LGet(expr, name);
             } else {
                 break;
             }
@@ -305,6 +332,17 @@ class Parser {
 
         if (this.match(TokenType.NUMBER, TokenType.STRING)) {
             return new Literal(this.previous().literal);
+        }
+
+        if (this.match(TokenType.SUPER)) {
+            const keyword: Token = this.previous();
+            this.consume(TokenType.DOT, "Expect '.' after 'super'.");
+            const method: Token = this.consume(TokenType.IDENTIFIER, "Expect superclass method name.");
+            return new Super(keyword, method);
+        }
+
+        if (this.match(TokenType.THIS)) {
+            return new This(this.previous());
         }
 
         if (this.match(TokenType.IDENTIFIER)) {

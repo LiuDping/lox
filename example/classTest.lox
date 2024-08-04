@@ -1,0 +1,53 @@
+class Bagel {}
+var bagel = Bagel();
+bagel.name = "bagel";
+print bagel.name;
+
+class Bacon {
+  eat() {
+    print "Crunch crunch crunch!";
+  }
+}
+
+Bacon().eat(); 
+
+
+class Cake {
+  taste() {
+    var adjective = "delicious";
+    print "The " + this.flavor + " cake is " + adjective + "!";
+  }
+}
+
+var cake = Cake();
+cake.flavor = "German chocolate";
+cake.taste();
+
+class Foo {
+  init() {
+    print this;
+  }
+}
+
+var foo = Foo();
+print foo.init();
+
+
+class Bar {
+    init(name) {
+        this.name = name;
+    }
+
+    setName(name) {
+        this.name = name;
+    }
+
+    getName() {
+        return this.name;
+    }
+}
+
+var bar = Bar("bar");
+print bar.getName();
+bar.setName("foo");
+print bar.getName();

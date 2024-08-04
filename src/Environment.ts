@@ -24,7 +24,6 @@ class Environment {
         for (let i = 0; i < distance; i++) {
             environment = environment.enclosing!;
         }
-
         return environment!;
     }
 

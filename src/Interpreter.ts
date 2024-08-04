@@ -1,11 +1,13 @@
 import TokenType from "./TokenType";
 import type Token from "./Token";
-import type { Binary, Expr, Grouping, Literal, Unary, Visitor as ExprVisitor, Variable, Assign, Logical, Call } from "./Expr";
-import type { Block, Expression, Func, If, Print, Return, Stmt, Visitor as StmtVisitor, Var, While } from "./Stmt";
+import type { Binary, Expr, Grouping, Literal, Unary, Visitor as ExprVisitor, Variable, Assign, Logical, Call, LGet, LSet, This, Super } from "./Expr";
+import type { Block, Class, Expression, Func, If, Print, Return, Stmt, Visitor as StmtVisitor, Var, While } from "./Stmt";
 import { LoxFunction, LoxCallable } from "./LoxCallable";
 import RuntimeError from "./RuntimeError";
 import Environment from "./Environment";
 import Lox from "./Lox";
+import LoxClass from "./LoxClass";
+import LoxInstance from "./LoxInstance";
 
 class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
     readonly _lox_return_: vObject[] = [];
@@ -42,6 +44,36 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         this.executeBlock(stmt.statements, new Environment(this.environment));
     }
 
+    visitClassStmt(stmt: Class): void {
+        let superclass: vObject = null;
+        if (stmt.superclass != null) {
+            superclass = this.evaluate(stmt.superclass);
+            if (!(superclass instanceof LoxClass)) {
+                throw new RuntimeError(stmt.superclass.name, "Superclass must be a class.");
+            }
+        }
+
+        this.environment.define(stmt.name.lexeme, null);
+
+        if (stmt.superclass != null) {
+            this.environment = new Environment(this.environment);
+            this.environment.define('super', superclass);
+        }
+
+        const methods: Record<string, LoxFunction> = {};
+        for (let method of stmt.methods) {
+            const func: LoxFunction = new LoxFunction(method, this.environment, method.name.lexeme == 'init');
+            methods[method.name.lexeme] = func;
+        }
+        const klass = new LoxClass(stmt.name.lexeme, superclass as LoxClass, methods);
+
+        if (superclass != null) {
+            this.environment = this.environment.enclosing!;
+        }
+        
+        this.environment.assign(stmt.name, klass);
+    }
+
     visitIfStmt(stmt: If): void {
         if (this.isTruthy(this.evaluate(stmt.condition))) {
             this.execute(stmt.thenBranch);
@@ -73,7 +105,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
     }
 
     visitFuncStmt(stmt: Func): void {
-        const func: LoxFunction = new LoxFunction(stmt, this.environment);
+        const func: LoxFunction = new LoxFunction(stmt, this.environment, false);
         this.environment.define(stmt.name.lexeme, func);
     }
 
@@ -165,6 +197,42 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         return func.call(this, args);
     }
 
+    visitLGetExpr(expr: LGet): vObject {
+        const obj: vObject = this.evaluate(expr.obj);
+        if (obj instanceof LoxInstance) {
+            return (obj as LoxInstance).get(expr.name);
+        }
+
+        throw new RuntimeError(expr.name, "Only instances have properties.");
+    }
+
+    visitLSetExpr(expr: LSet): vObject {
+        const obj: vObject = this.evaluate(expr.obj);
+
+        if (!(obj instanceof LoxInstance)) {
+            throw new RuntimeError(expr.name, "Only instances have fields.");
+        }
+
+        const value: vObject = this.evaluate(expr.value);
+        (obj as LoxInstance).set(expr.name, value);
+        return value;
+    }
+
+    visitThisExpr(expr: This): vObject {
+        return this.lookUpVariable(expr.keyword, expr);
+    }
+
+    visitSuperExpr(expr: Super): vObject {
+        const distance: number = this.locals.get(expr)!;
+        const superclass: LoxClass = this.environment.getAt(distance, 'super') as LoxClass;
+        const obj: LoxInstance = this.environment.getAt(distance - 1, 'this') as LoxInstance;
+        const method: LoxFunction | null = superclass.findMethod(expr.method.lexeme);
+        if (method == null) {
+            throw new RuntimeError(expr.method, "Undefined property '" + expr.method.lexeme + "'.");
+        }
+        return method.bind(obj);
+    }
+
     visitGroupingExpr(expr: Grouping): vObject {
         return this.evaluate(expr.expression);
     }
@@ -206,7 +274,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         // this.environment.assign(expr.name, value);
 
         const distance: number | undefined = this.locals.get(expr);
-        if(typeof distance == 'number') {
+        if (typeof distance == 'number') {
             this.environment.assignAt(distance, expr.name, value);
         } else {
             this.globals.assign(expr.name, value);

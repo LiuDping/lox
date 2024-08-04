@@ -7,6 +7,10 @@ abstract class Expr {
 interface Visitor<R> {
     visitBinaryExpr(expr: Binary): R;
     visitCallExpr(expr: Call): R;
+    visitLGetExpr(expr: LGet): R;
+    visitLSetExpr(expr: LSet): R;
+    visitThisExpr(expr: This): R;
+    visitSuperExpr(expr: Super): R;
     visitGroupingExpr(expr: Grouping): R;
     visitLiteralExpr(expr: Literal): R;
     visitUnaryExpr(expr: Unary): R;
@@ -46,6 +50,66 @@ export class Call extends Expr {
 
     accept<R>(visitor: Visitor<R>): R {
         return visitor.visitCallExpr(this);
+    }
+}
+
+export class LGet extends Expr {
+    readonly obj: Expr;
+    readonly name: Token;
+
+    constructor(obj: Expr, name: Token) {
+        super()
+        this.obj = obj;
+        this.name = name;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitLGetExpr(this);
+    }
+}
+
+export class LSet extends Expr {
+    readonly obj: Expr;
+    readonly name: Token;
+    readonly value: Expr;
+
+    constructor(obj: Expr, name: Token, value: Expr) {
+        super()
+        this.obj = obj;
+        this.name = name;
+        this.value = value;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitLSetExpr(this);
+    }
+}
+
+export class This extends Expr {
+    readonly keyword: Token;
+
+    constructor(keyword: Token) {
+        super()
+        this.keyword = keyword;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitThisExpr(this);
+    }
+}
+
+export class Super extends Expr {
+    readonly keyword: Token;
+    readonly method: Token;
+
+    constructor(keyword: Token, method: Token) {
+        super()
+        this.keyword = keyword;
+        this.method = method;
+    }
+
+    accept<R>(visitor: Visitor<R>): R {
+        return visitor.visitSuperExpr(this);
     }
 }
 
