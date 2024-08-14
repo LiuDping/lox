@@ -8,9 +8,9 @@ import Environment from "./Environment";
 import Lox from "./Lox";
 import LoxClass from "./LoxClass";
 import LoxInstance from "./LoxInstance";
+import ReturnErr from './Return';
 
 class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
-    readonly _lox_return_: vObject[] = [];
     readonly globals: Environment = new Environment();
     private environment: Environment = this.globals;
     private readonly locals: Map<Expr, number> = new Map();
@@ -70,7 +70,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         if (superclass != null) {
             this.environment = this.environment.enclosing!;
         }
-        
+
         this.environment.assign(stmt.name, klass);
     }
 
@@ -118,8 +118,7 @@ class Interpreter implements ExprVisitor<vObject>, StmtVisitor<void> {
         let value: vObject = null;
         if (stmt.value != null) value = this.evaluate(stmt.value);
 
-        this._lox_return_.push(value);
-        throw new Error('_lox_return_');
+        throw new ReturnErr(value);
     }
 
     visitVarStmt(stmt: Var): void {

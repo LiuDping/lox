@@ -2,6 +2,7 @@ import Environment from "./Environment";
 import type Interpreter from "./Interpreter"
 import type LoxInstance from "./LoxInstance";
 import type { Func } from "./Stmt";
+import ReturnErr from './Return'
 
 export class LoxCallable {
     call(interpreter: Interpreter, args: vObject[]): vObject {
@@ -37,7 +38,7 @@ export class LoxFunction extends LoxCallable {
 
     call(interpreter: Interpreter, args: vObject[]): vObject {
         const environment: Environment = new Environment(this.closure);
-        
+
         for (let i = 0, len = this.declaration.params.length; i < len; i++) {
             environment.define(this.declaration.params[i].lexeme, args[i]);
         }
@@ -46,12 +47,11 @@ export class LoxFunction extends LoxCallable {
             interpreter.executeBlock(this.declaration.body, environment);
         } catch (e) {
             if (this.isInitializer) {
-                interpreter._lox_return_.pop();
                 return this.closure.getAt(0, 'this');
             }
-            // @ts-nocheck
-            // @ts-ignore
-            if (e.message == '_lox_return_') return interpreter._lox_return_.pop()!;
+            if (e instanceof ReturnErr) {
+                return e.value
+            }
         }
 
         if (this.isInitializer) return this.closure.getAt(0, 'this');
