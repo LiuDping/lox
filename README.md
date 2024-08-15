@@ -28,3 +28,5 @@ bun run index.ts  // 提供repl方式
 
 bun run index.ts ./example/varTest.lox // 运行文件代码
 ```
+
+> 也可以用bun将项目打包成一个二进制文件lox，然后可以用lox ./example/varTest.lox 运行代码
